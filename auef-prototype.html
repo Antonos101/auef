@@ -1,0 +1,1990 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUEF | Класифицирана База Данни на Аномалии</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #09090B;
+  --surface: #111113;
+  --surface-2: #18181B;
+  --border: rgba(255,255,255,0.07);
+  --border-glow: rgba(211,47,47,0.3);
+  --red: #D32F2F;
+  --red-dim: #8B1A1A;
+  --red-bright: #EF5350;
+  --amber: #FFB000;
+  --amber-dim: #7D5800;
+  --text: #E4E4E7;
+  --muted: #71717A;
+  --muted-2: #52525B;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+  --display: 'Syne', sans-serif;
+  --safe: #22C55E;
+  --euclid: #EAB308;
+  --hostile: #EF4444;
+  --keter: #DC2626;
+  --apollyon: #7C3AED;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.7;
+  overflow-x:hidden;
+}
+
+/* SCANLINES */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events:none;
+  z-index:9000;
+}
+/* FILM GRAIN */
+body::after{
+  content:'';
+  position:fixed;
+  inset:-50%;
+  width:200%;
+  height:200%;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity:0.035;
+  pointer-events:none;
+  z-index:8999;
+  animation:grain 0.5s steps(2) infinite;
+}
+@keyframes grain{0%,100%{transform:translate(0,0);}25%{transform:translate(-1%,-1%);}50%{transform:translate(1%,1%);}75%{transform:translate(-1%,1%);}  }
+
+/* NAV */
+nav{
+  position:sticky;
+  top:0;
+  z-index:1000;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 2rem;
+  height:52px;
+  background:rgba(9,9,11,0.92);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+.nav-logo{
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:0.15em;
+  color:var(--red-bright);
+  text-decoration:none;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+}
+.nav-logo-bracket{color:var(--muted-2);}
+.nav-links{
+  display:flex;
+  align-items:center;
+  gap:2rem;
+}
+.nav-links a{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:var(--muted);
+  text-decoration:none;
+  transition:color 0.2s;
+  cursor:pointer;
+}
+.nav-links a:hover{color:var(--text);}
+.nav-right{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.nav-badge{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.1em;
+  color:var(--amber);
+  border:1px solid rgba(255,176,0,0.2);
+  padding:3px 8px;
+  background:rgba(255,176,0,0.04);
+}
+.nav-search-btn{
+  background:none;
+  border:1px solid var(--border);
+  color:var(--muted);
+  font-family:var(--mono);
+  font-size:11px;
+  padding:4px 10px;
+  cursor:pointer;
+  letter-spacing:0.08em;
+  transition:all 0.2s;
+}
+.nav-search-btn:hover{border-color:var(--muted-2);color:var(--text);}
+
+/* BREADCRUMB */
+.breadcrumb{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:0.08em;
+  color:var(--muted-2);
+  padding:10px 2rem;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.breadcrumb span{color:var(--muted-2);}
+.breadcrumb a{color:var(--muted);text-decoration:none;cursor:pointer;transition:color 0.2s;}
+.breadcrumb a:hover{color:var(--text);}
+
+/* ═══════════════════ HOMEPAGE ═══════════════════ */
+#page-home{display:block;}
+#page-entity{display:none;}
+
+/* HERO */
+.hero{
+  position:relative;
+  min-height:88vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:4rem 2rem;
+  overflow:hidden;
+}
+.hero-grid-bg{
+  position:absolute;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(211,47,47,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(211,47,47,0.03) 1px, transparent 1px);
+  background-size:60px 60px;
+  opacity:0.6;
+}
+.hero-vignette{
+  position:absolute;
+  inset:0;
+  background:radial-gradient(ellipse at center, transparent 30%, var(--bg) 80%);
+}
+.hero-warning{
+  position:relative;
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.2em;
+  color:var(--red);
+  border:1px solid var(--red-dim);
+  padding:6px 16px;
+  margin-bottom:2.5rem;
+  background:rgba(211,47,47,0.04);
+  animation:pulse-border 3s ease-in-out infinite;
+}
+@keyframes pulse-border{
+  0%,100%{border-color:var(--red-dim);}
+  50%{border-color:var(--red);}
+}
+.hero-warning::before{content:'⚠ ';}
+.hero h1{
+  position:relative;
+  font-family:var(--display);
+  font-size:clamp(2.8rem, 6vw, 5.5rem);
+  font-weight:800;
+  line-height:1.05;
+  letter-spacing:-0.02em;
+  max-width:900px;
+  margin-bottom:1.5rem;
+}
+.hero h1 .line-1{display:block;color:var(--text);}
+.hero h1 .line-2{
+  display:block;
+  color:var(--red-bright);
+  position:relative;
+}
+.glitch-text{
+  position:relative;
+  display:inline-block;
+}
+.glitch-text::before,.glitch-text::after{
+  content:attr(data-text);
+  position:absolute;
+  top:0;left:0;
+  width:100%;
+}
+.glitch-text::before{
+  color:var(--red-bright);
+  animation:glitch-1 4s infinite;
+  clip-path:polygon(0 0, 100% 0, 100% 40%, 0 40%);
+}
+.glitch-text::after{
+  color:#00FFFF;
+  opacity:0.3;
+  animation:glitch-2 4s infinite;
+  clip-path:polygon(0 60%, 100% 60%, 100% 100%, 0 100%);
+}
+@keyframes glitch-1{
+  0%,94%,96%,100%{transform:translate(0);}
+  95%{transform:translate(-3px,1px);}
+}
+@keyframes glitch-2{
+  0%,94%,96%,100%{transform:translate(0);}
+  95%{transform:translate(3px,-1px);}
+}
+.hero-sub{
+  position:relative;
+  font-family:var(--mono);
+  font-size:13px;
+  color:var(--muted);
+  letter-spacing:0.05em;
+  max-width:600px;
+  margin-bottom:2.5rem;
+  line-height:1.8;
+}
+.hero-sub em{color:var(--text);font-style:normal;}
+.hero-ctas{
+  position:relative;
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+.btn-primary{
+  font-family:var(--mono);
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  color:var(--bg);
+  background:var(--red-bright);
+  border:none;
+  padding:14px 28px;
+  cursor:pointer;
+  transition:all 0.2s;
+  clip-path:polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+}
+.btn-primary:hover{background:#FF6B6B;transform:translateY(-1px);}
+.btn-secondary{
+  font-family:var(--mono);
+  font-size:12px;
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  color:var(--text);
+  background:transparent;
+  border:1px solid var(--border);
+  padding:14px 28px;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+.btn-secondary:hover{border-color:var(--muted-2);background:var(--surface);}
+.hero-stats{
+  position:relative;
+  display:flex;
+  gap:3rem;
+  margin-top:3rem;
+  padding-top:2rem;
+  border-top:1px solid var(--border);
+}
+.hero-stat{
+  font-family:var(--mono);
+  text-align:center;
+}
+.hero-stat-num{
+  display:block;
+  font-size:2rem;
+  font-weight:600;
+  color:var(--text);
+}
+.hero-stat-label{
+  display:block;
+  font-size:10px;
+  letter-spacing:0.12em;
+  color:var(--muted);
+  text-transform:uppercase;
+  margin-top:4px;
+}
+
+/* STATUS BAR */
+.status-bar{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:0 2rem;
+  height:36px;
+  display:flex;
+  align-items:center;
+  gap:2rem;
+  overflow:hidden;
+}
+.status-item{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.1em;
+  color:var(--muted-2);
+  white-space:nowrap;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.status-dot{
+  width:6px;height:6px;
+  border-radius:50%;
+  background:var(--red);
+  animation:blink 2s ease-in-out infinite;
+}
+.status-dot.amber{background:var(--amber);}
+.status-dot.green{background:var(--safe);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.2;}}
+
+/* SECTION HEADERS */
+.section{padding:4rem 2rem;}
+.section-header{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  margin-bottom:2rem;
+  padding-bottom:1rem;
+  border-bottom:1px solid var(--border);
+}
+.section-title{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.section-title span{color:var(--red);}
+.section-action{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.1em;
+  color:var(--muted-2);
+  text-decoration:none;
+  border-bottom:1px solid var(--muted-2);
+  cursor:pointer;
+  transition:color 0.2s;
+}
+.section-action:hover{color:var(--text);}
+
+/* ENTITY CARDS */
+.entity-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:1px;
+  background:var(--border);
+}
+.entity-card{
+  background:var(--surface);
+  padding:1.5rem;
+  cursor:pointer;
+  transition:background 0.2s;
+  position:relative;
+  overflow:hidden;
+}
+.entity-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:var(--card-accent, var(--red));
+  transform:scaleX(0);
+  transform-origin:left;
+  transition:transform 0.3s ease;
+}
+.entity-card:hover{background:var(--surface-2);}
+.entity-card:hover::before{transform:scaleX(1);}
+.entity-card.safe{--card-accent:var(--safe);}
+.entity-card.euclid{--card-accent:var(--euclid);}
+.entity-card.hostile{--card-accent:var(--hostile);}
+.entity-card.keter{--card-accent:var(--keter);}
+.entity-card.apollyon{--card-accent:var(--apollyon);}
+.card-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  margin-bottom:1rem;
+}
+.card-id{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:0.15em;
+  color:var(--muted-2);
+}
+.threat-badge{
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  padding:3px 8px;
+  font-weight:600;
+}
+.threat-badge.safe{color:var(--safe);border:1px solid rgba(34,197,94,0.2);background:rgba(34,197,94,0.05);}
+.threat-badge.euclid{color:var(--euclid);border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);}
+.threat-badge.hostile{color:var(--hostile);border:1px solid rgba(239,68,68,0.2);background:rgba(239,68,68,0.05);}
+.threat-badge.keter{color:var(--red-bright);border:1px solid rgba(220,38,38,0.3);background:rgba(220,38,38,0.08);}
+.threat-badge.apollyon{color:#A78BFA;border:1px solid rgba(124,58,237,0.3);background:rgba(124,58,237,0.08);}
+.card-title{
+  font-family:var(--display);
+  font-size:1.3rem;
+  font-weight:700;
+  color:var(--text);
+  margin-bottom:0.4rem;
+  line-height:1.2;
+}
+.card-subtitle{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--muted-2);
+  margin-bottom:0.8rem;
+  letter-spacing:0.05em;
+}
+.card-excerpt{
+  font-size:13.5px;
+  color:var(--muted);
+  line-height:1.65;
+  margin-bottom:1.2rem;
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.card-footer{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.card-status{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--muted-2);
+  letter-spacing:0.08em;
+}
+.card-read{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.1em;
+  color:var(--red);
+  text-transform:uppercase;
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+.card-read::after{content:'→';}
+
+/* DECLASSIFIED / LATEST */
+.latest-grid{
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:1px;
+  background:var(--border);
+}
+.latest-main{
+  background:var(--surface);
+  padding:2rem;
+  position:relative;
+}
+.latest-sidebar{
+  background:var(--surface);
+  display:flex;
+  flex-direction:column;
+}
+.latest-video{
+  background:#000;
+  aspect-ratio:16/9;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  overflow:hidden;
+  cursor:pointer;
+  margin-bottom:1.5rem;
+}
+.latest-video::after{
+  content:'▶ ЗАПУСТИ ДОКАЗАТЕЛСТВО';
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:0.1em;
+  color:var(--text);
+  background:rgba(211,47,47,0.9);
+  padding:10px 20px;
+  position:absolute;
+}
+.video-bg-text{
+  font-family:var(--mono);
+  font-size:8px;
+  color:rgba(255,255,255,0.03);
+  text-align:center;
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  word-break:break-all;
+  line-height:1.2;
+  padding:1rem;
+}
+.latest-meta{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--muted-2);
+  letter-spacing:0.08em;
+  margin-bottom:0.6rem;
+}
+.latest-title{
+  font-family:var(--display);
+  font-size:1.5rem;
+  font-weight:700;
+  margin-bottom:0.8rem;
+  line-height:1.2;
+}
+.latest-desc{
+  font-size:14px;
+  color:var(--muted);
+  line-height:1.7;
+}
+.log-entry{
+  padding:1.25rem 1.5rem;
+  border-bottom:1px solid var(--border);
+  cursor:pointer;
+  transition:background 0.2s;
+}
+.log-entry:last-child{border-bottom:none;}
+.log-entry:hover{background:var(--surface-2);}
+.log-entry-id{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--muted-2);
+  letter-spacing:0.1em;
+  margin-bottom:4px;
+}
+.log-entry-title{
+  font-size:14px;
+  font-weight:500;
+  color:var(--text);
+  margin-bottom:4px;
+}
+.log-entry-meta{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--muted-2);
+  letter-spacing:0.06em;
+}
+.log-entry-meta .new{color:var(--red);margin-left:8px;}
+
+/* CLEARANCE UPSELL */
+.clearance-block{
+  margin:0 2rem;
+  background:linear-gradient(135deg, rgba(211,47,47,0.06) 0%, rgba(211,47,47,0.02) 100%);
+  border:1px solid rgba(211,47,47,0.15);
+  padding:3rem;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:2rem;
+  position:relative;
+  overflow:hidden;
+}
+.clearance-block::before{
+  content:'CLASSIFIED';
+  position:absolute;
+  right:-40px;
+  top:50%;
+  transform:translateY(-50%) rotate(90deg);
+  font-family:var(--mono);
+  font-size:80px;
+  font-weight:800;
+  color:rgba(211,47,47,0.04);
+  letter-spacing:0.2em;
+  pointer-events:none;
+}
+.clearance-left{}
+.clearance-eyebrow{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.18em;
+  color:var(--red);
+  text-transform:uppercase;
+  margin-bottom:0.8rem;
+}
+.clearance-title{
+  font-family:var(--display);
+  font-size:1.8rem;
+  font-weight:800;
+  line-height:1.15;
+  margin-bottom:0.8rem;
+}
+.clearance-desc{
+  font-size:14px;
+  color:var(--muted);
+  max-width:480px;
+  line-height:1.7;
+}
+.clearance-right{
+  flex-shrink:0;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  align-items:flex-end;
+}
+.clearance-levels{
+  display:flex;
+  gap:4px;
+}
+.level-pip{
+  width:28px;height:8px;
+  background:var(--surface-2);
+  border:1px solid var(--border);
+}
+.level-pip.filled{background:var(--red);}
+
+/* TICKER */
+.ticker-wrap{
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  overflow:hidden;
+  height:32px;
+  display:flex;
+  align-items:center;
+  position:relative;
+}
+.ticker-label{
+  position:absolute;
+  left:0;
+  background:var(--red);
+  color:white;
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:0.15em;
+  padding:0 12px;
+  height:100%;
+  display:flex;
+  align-items:center;
+  z-index:2;
+  white-space:nowrap;
+}
+.ticker-inner{
+  display:flex;
+  animation:ticker 30s linear infinite;
+  padding-left:120px;
+}
+.ticker-item{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.08em;
+  color:var(--muted-2);
+  white-space:nowrap;
+  padding:0 2rem;
+}
+.ticker-item .hi{color:var(--red);}
+@keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+/* FOOTER */
+footer{
+  border-top:1px solid var(--border);
+  padding:2rem;
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:2rem;
+  margin-top:4rem;
+}
+.footer-brand{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--muted-2);
+  line-height:1.8;
+}
+.footer-brand strong{
+  display:block;
+  color:var(--red-bright);
+  font-size:13px;
+  letter-spacing:0.15em;
+  margin-bottom:0.5rem;
+}
+.footer-col-title{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.15em;
+  color:var(--muted-2);
+  text-transform:uppercase;
+  margin-bottom:0.8rem;
+}
+.footer-links{
+  list-style:none;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.footer-links a{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--muted-2);
+  text-decoration:none;
+  cursor:pointer;
+  transition:color 0.2s;
+}
+.footer-links a:hover{color:var(--text);}
+.footer-legal{
+  grid-column:1/-1;
+  border-top:1px solid var(--border);
+  padding-top:1.5rem;
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--muted-2);
+  letter-spacing:0.06em;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+/* ═══════════════════ ENTITY PAGE ═══════════════════ */
+.entity-layout{
+  display:grid;
+  grid-template-columns:240px 1fr 280px;
+  min-height:calc(100vh - 52px);
+}
+.entity-toc{
+  border-right:1px solid var(--border);
+  padding:2rem 1.5rem;
+  position:sticky;
+  top:52px;
+  height:calc(100vh - 52px);
+  overflow-y:auto;
+}
+.toc-title{
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  color:var(--muted-2);
+  margin-bottom:1.5rem;
+  padding-bottom:0.8rem;
+  border-bottom:1px solid var(--border);
+}
+.toc-list{
+  list-style:none;
+  display:flex;
+  flex-direction:column;
+  gap:0;
+}
+.toc-item a{
+  display:block;
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--muted-2);
+  text-decoration:none;
+  padding:8px 0;
+  border-left:2px solid transparent;
+  padding-left:12px;
+  margin-left:-12px;
+  transition:all 0.2s;
+  cursor:pointer;
+}
+.toc-item a:hover,.toc-item.active a{color:var(--text);border-left-color:var(--red);}
+.toc-item.sub a{padding-left:24px;margin-left:-12px;font-size:10px;}
+
+.entity-main{
+  max-width:800px;
+  padding:3rem 3rem;
+}
+.entity-sidebar-right{
+  border-left:1px solid var(--border);
+  padding:2rem 1.5rem;
+  position:sticky;
+  top:52px;
+  height:calc(100vh - 52px);
+  overflow-y:auto;
+}
+
+/* ENTITY HEADER */
+.entity-classification{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:1.5rem;
+}
+.entity-id-large{
+  font-family:var(--mono);
+  font-size:12px;
+  letter-spacing:0.2em;
+  color:var(--muted-2);
+}
+.entity-h1{
+  font-family:var(--display);
+  font-size:clamp(2rem,4vw,3rem);
+  font-weight:800;
+  line-height:1.1;
+  color:var(--text);
+  margin-bottom:0.5rem;
+}
+.entity-sub{
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--muted);
+  letter-spacing:0.05em;
+  margin-bottom:2rem;
+}
+
+/* METADATA TABLE */
+.meta-table{
+  background:var(--surface);
+  border:1px solid var(--border);
+  padding:1.25rem;
+  margin-bottom:2.5rem;
+  font-family:var(--mono);
+  font-size:12px;
+}
+.meta-table-title{
+  font-size:9px;
+  letter-spacing:0.18em;
+  color:var(--muted-2);
+  text-transform:uppercase;
+  margin-bottom:1rem;
+  padding-bottom:0.6rem;
+  border-bottom:1px solid var(--border);
+}
+.meta-row{
+  display:grid;
+  grid-template-columns:140px 1fr;
+  gap:0.5rem;
+  padding:6px 0;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+}
+.meta-row:last-child{border-bottom:none;}
+.meta-key{color:var(--muted-2);letter-spacing:0.06em;}
+.meta-val{color:var(--text);}
+.meta-val.hostile{color:var(--hostile);}
+.meta-val.euclid{color:var(--euclid);}
+.meta-val.safe{color:var(--safe);}
+.meta-val.uncontained{color:var(--red-bright);}
+.meta-val.secured{color:var(--safe);}
+
+/* ENTITY CONTENT */
+.entity-section{margin-bottom:3rem;}
+.entity-section-heading{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:0.2em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:1.2rem;
+  padding-bottom:0.6rem;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.entity-section-heading::before{
+  content:'//';
+  color:var(--red);
+  font-size:14px;
+}
+.entity-body{
+  font-size:15px;
+  color:var(--text);
+  line-height:1.8;
+  max-width:65ch;
+}
+.entity-body p{margin-bottom:1.2rem;}
+.entity-body strong{color:var(--text);font-weight:500;}
+
+/* REDACTED */
+.redacted{
+  display:inline;
+  background:var(--text);
+  color:var(--text);
+  cursor:pointer;
+  padding:0 2px;
+  letter-spacing:0.06em;
+  transition:all 0.3s ease;
+  position:relative;
+  user-select:none;
+}
+.redacted:hover{
+  background:var(--red);
+  box-shadow:0 0 12px rgba(211,47,47,0.4);
+}
+.redacted.revealed{
+  background:transparent;
+  color:var(--red-bright);
+  cursor:default;
+  box-shadow:none;
+  animation:reveal-flash 0.4s ease;
+}
+@keyframes reveal-flash{
+  0%{color:var(--red-bright);background:rgba(211,47,47,0.3);}
+  100%{background:transparent;}
+}
+
+/* INCIDENT LOG ACCORDIONS */
+.accordion{
+  border:1px solid var(--border);
+  margin-bottom:1px;
+}
+.accordion-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:1rem 1.25rem;
+  cursor:pointer;
+  background:var(--surface);
+  transition:background 0.2s;
+  user-select:none;
+}
+.accordion-header:hover{background:var(--surface-2);}
+.accordion-title{
+  font-family:var(--mono);
+  font-size:12px;
+  letter-spacing:0.08em;
+  color:var(--text);
+}
+.accordion-badge{
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:0.1em;
+  color:var(--muted-2);
+  border:1px solid var(--border);
+  padding:2px 6px;
+}
+.accordion-toggle{
+  font-family:var(--mono);
+  font-size:14px;
+  color:var(--muted-2);
+  transition:transform 0.2s;
+}
+.accordion.open .accordion-toggle{transform:rotate(45deg);color:var(--red);}
+.accordion-body{
+  display:none;
+  padding:1.5rem 1.25rem;
+  border-top:1px solid var(--border);
+  background:rgba(0,0,0,0.2);
+}
+.accordion.open .accordion-body{display:block;}
+.accordion-body p{
+  font-size:14px;
+  color:var(--muted);
+  line-height:1.8;
+  margin-bottom:0.8rem;
+  font-family:var(--sans);
+}
+.accordion-body .log-line{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--muted);
+  line-height:1.6;
+  margin-bottom:4px;
+}
+.accordion-body .log-line .timestamp{color:var(--muted-2);}
+.accordion-body .log-line .speaker{color:var(--amber);}
+.accordion-body .log-line .critical{color:var(--red-bright);}
+
+/* RELATED ENTITIES */
+.related-grid{
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+  background:var(--border);
+}
+.related-card{
+  background:var(--surface);
+  padding:1rem 1.25rem;
+  cursor:pointer;
+  transition:background 0.2s;
+  display:flex;
+  align-items:center;
+  gap:1rem;
+}
+.related-card:hover{background:var(--surface-2);}
+.related-card-id{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--muted-2);
+  letter-spacing:0.1em;
+  min-width:60px;
+}
+.related-card-info{}
+.related-card-name{
+  font-size:13px;
+  font-weight:500;
+  color:var(--text);
+}
+.related-card-threat{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--muted-2);
+  margin-top:2px;
+}
+.related-card-arrow{
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--red);
+  margin-left:auto;
+}
+
+/* PATREON GATE */
+.patreon-gate{
+  border:1px solid rgba(211,47,47,0.2);
+  background:linear-gradient(135deg,rgba(211,47,47,0.04),transparent);
+  padding:2rem;
+  margin-top:2rem;
+  position:relative;
+  overflow:hidden;
+}
+.patreon-gate::before{
+  content:'УРОВЕН 4 ДОСТЪП ИЗИСКВАН';
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  font-family:var(--mono);
+  font-size:60px;
+  font-weight:800;
+  color:rgba(211,47,47,0.04);
+  white-space:nowrap;
+  pointer-events:none;
+}
+.gate-blurred{
+  filter:blur(5px);
+  opacity:0.4;
+  pointer-events:none;
+  margin-bottom:1.5rem;
+  font-size:14px;
+  line-height:1.8;
+  color:var(--text);
+}
+.gate-cta{
+  display:flex;
+  align-items:center;
+  gap:1rem;
+}
+.gate-lock{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.1em;
+  color:var(--muted-2);
+}
+
+/* SIDEBAR STUFF */
+.sidebar-block{
+  margin-bottom:2rem;
+  padding-bottom:2rem;
+  border-bottom:1px solid var(--border);
+}
+.sidebar-block:last-child{border-bottom:none;}
+.sidebar-block-title{
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  color:var(--muted-2);
+  margin-bottom:1rem;
+}
+.progress-bar-wrap{
+  background:var(--surface-2);
+  height:3px;
+  width:100%;
+  margin-bottom:0.6rem;
+}
+.progress-bar-fill{
+  height:100%;
+  background:var(--red);
+  width:0%;
+  transition:width 0.3s;
+}
+.progress-label{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--muted-2);
+  letter-spacing:0.08em;
+}
+
+/* NAVIGATION BOTTOM */
+.entity-nav-bottom{
+  display:flex;
+  justify-content:space-between;
+  align-items:stretch;
+  border-top:1px solid var(--border);
+  margin-top:3rem;
+}
+.entity-nav-prev,.entity-nav-next{
+  padding:1.5rem;
+  flex:1;
+  cursor:pointer;
+  transition:background 0.2s;
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:0.06em;
+}
+.entity-nav-prev:hover,.entity-nav-next:hover{background:var(--surface);}
+.entity-nav-prev{border-right:1px solid var(--border);}
+.entity-nav-next{text-align:right;}
+.entity-nav-label{color:var(--muted-2);font-size:9px;letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:4px;}
+.entity-nav-name{color:var(--text);}
+
+/* SCROLL PROGRESS */
+.scroll-progress{
+  position:fixed;
+  top:52px;
+  left:0;
+  right:0;
+  height:2px;
+  background:rgba(255,255,255,0.04);
+  z-index:999;
+}
+.scroll-progress-fill{
+  height:100%;
+  background:var(--red);
+  width:0%;
+  transition:width 0.1s;
+}
+
+/* SEARCH OVERLAY */
+.search-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(9,9,11,0.95);
+  backdrop-filter:blur(12px);
+  z-index:2000;
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  padding-top:8rem;
+}
+.search-overlay.open{display:flex;}
+.search-box{
+  width:min(700px,90vw);
+}
+.search-label{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  color:var(--muted-2);
+  margin-bottom:1rem;
+}
+.search-input-wrap{
+  display:flex;
+  align-items:center;
+  border:1px solid var(--border);
+  background:var(--surface);
+  margin-bottom:2rem;
+}
+.search-input-prefix{
+  font-family:var(--mono);
+  font-size:14px;
+  color:var(--red);
+  padding:0 1rem;
+}
+.search-input{
+  flex:1;
+  background:none;
+  border:none;
+  outline:none;
+  font-family:var(--mono);
+  font-size:16px;
+  color:var(--text);
+  padding:1rem 0;
+  letter-spacing:0.06em;
+}
+.search-results-label{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.15em;
+  color:var(--muted-2);
+  margin-bottom:0.8rem;
+}
+.search-result-item{
+  padding:1rem 1.25rem;
+  background:var(--surface);
+  border:1px solid var(--border);
+  margin-bottom:1px;
+  cursor:pointer;
+  transition:background 0.2s;
+  display:flex;
+  gap:1rem;
+  align-items:center;
+}
+.search-result-item:hover{background:var(--surface-2);}
+.search-close{
+  position:absolute;
+  top:1.5rem;
+  right:1.5rem;
+  background:none;
+  border:none;
+  color:var(--muted-2);
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:0.1em;
+  cursor:pointer;
+}
+.search-close:hover{color:var(--text);}
+
+/* DECRYPTING LOADER */
+@keyframes decrypt-char{
+  0%{content:'#';}10%{content:'█';}20%{content:'A';}30%{content:'@';}40%{content:'8';}50%{content:'d';}60%{content:'!';}70%{content:'X';}80%{content:'0';}90%{content:'*';}100%{content:attr(data-char);}
+}
+
+/* TRANSITIONS */
+.page-transition{
+  animation:fadeIn 0.4s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .entity-layout{grid-template-columns:1fr;}
+  .entity-toc,.entity-sidebar-right{display:none;}
+  .entity-main{padding:2rem 1.25rem;}
+  .latest-grid{grid-template-columns:1fr;}
+  footer{grid-template-columns:1fr;gap:1.5rem;}
+  .footer-legal{flex-direction:column;gap:0.5rem;text-align:center;}
+  .hero-stats{gap:1.5rem;}
+  .clearance-block{flex-direction:column;}
+  .clearance-right{align-items:flex-start;}
+  .nav-links{display:none;}
+}
+@media(max-width:600px){
+  nav{padding:0 1rem;}
+  .section{padding:2.5rem 1rem;}
+  .clearance-block{margin:0 1rem;padding:2rem;}
+  .hero{padding:3rem 1rem;}
+  .hero-stats{flex-direction:column;gap:1rem;text-align:left;}
+}
+</style>
+</head>
+<body>
+
+<!-- SCROLL PROGRESS -->
+<div class="scroll-progress"><div class="scroll-progress-fill" id="scrollFill"></div></div>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" onclick="showPage('home')">
+    <span class="nav-logo-bracket">[</span>AUEF<span class="nav-logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a onclick="showPage('home')">// База Данни</a>
+    <a>// Хронология</a>
+    <a>// Доказателства</a>
+    <a>// За Фондацията</a>
+    <a onclick="openSearch()">// Търсене</a>
+  </div>
+  <div class="nav-right">
+    <span class="nav-badge">ДОСТЪП: НВО-3</span>
+    <button class="nav-search-btn" onclick="openSearch()">⌕ ЗАЯВКА</button>
+  </div>
+</nav>
+
+<!-- ══════════════════ HOME PAGE ══════════════════ -->
+<div id="page-home" class="page-transition">
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-item"><span class="status-dot"></span>НАРУШЕНИЕ НА СЪДЪРЖАНЕ: 3 АКТИВНИ</div>
+    <div class="status-item"><span class="status-dot amber"></span>НИВО НА ЗАПЛАХА: ПОВИШЕНО</div>
+    <div class="status-item"><span class="status-dot green"></span>СЪРВЪР: ОНЛАЙН</div>
+    <div class="status-item">ПОСЛЕДНА АКТУАЛИЗАЦИЯ: <span style="color:var(--amber)">14.06.2024 — 03:41:22</span></div>
+    <div class="status-item">ИНЦИДЕНТИ ТАЗИ СЕДМИЦА: <span style="color:var(--red-bright)">7</span></div>
+  </div>
+
+  <!-- TICKER -->
+  <div class="ticker-wrap">
+    <div class="ticker-label">⬤ LIVE FEED</div>
+    <div class="ticker-inner" id="tickerInner">
+      <span class="ticker-item">AUE-000 — <span class="hi">НА СВОБОДА</span> — Последно засечен: Пловдив, ул. Капитан Райчо</span>
+      <span class="ticker-item">AUE-007 — Докладвани 3 жертви по време на извличане</span>
+      <span class="ticker-item">AUE-012 — <span class="hi">КОГНИТИВНА ОПАСНОСТ</span> — Не преглеждайте директно</span>
+      <span class="ticker-item">ПРОТОКОЛ ЗА НАРУШЕНИЕ АКТИВИРАН — Ниво: КРИТИЧНО</span>
+      <span class="ticker-item">AUE-031 — Субектът показва признаци на адаптация</span>
+      <span class="ticker-item">ВНИМАНИЕ: Данните на тази страница са класифицирани на ниво 3</span>
+      <span class="ticker-item">AUE-000 — <span class="hi">НА СВОБОДА</span> — Последно засечен: Пловдив, ул. Капитан Райчо</span>
+      <span class="ticker-item">AUE-007 — Докладвани 3 жертви по време на извличане</span>
+      <span class="ticker-item">AUE-012 — <span class="hi">КОГНИТИВНА ОПАСНОСТ</span> — Не преглеждайте директно</span>
+      <span class="ticker-item">ПРОТОКОЛ ЗА НАРУШЕНИЕ АКТИВИРАН — Ниво: КРИТИЧНО</span>
+      <span class="ticker-item">AUE-031 — Субектът показва признаци на адаптация</span>
+      <span class="ticker-item">ВНИМАНИЕ: Данните на тази страница са класифицирани на ниво 3</span>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-grid-bg"></div>
+    <div class="hero-vignette"></div>
+    <div class="hero-warning">ДОСТЪПВАТЕ КЛАСИФИЦИРАНА МРЕЖА — ТАЗИ СЕСИЯ СЕ НАБЛЮДАВА</div>
+    <h1>
+      <span class="line-1">АНОМАЛИИТЕ СЪЩЕСТВУВАТ.</span>
+      <span class="line-2"><span class="glitch-text" data-text="НИЕ ГИ ДОКУМЕНТИРАМЕ.">НИЕ ГИ ДОКУМЕНТИРАМЕ.</span></span>
+    </h1>
+    <p class="hero-sub">
+      Класифицирана база данни на <em>Фондацията на Аномалните Единици на Вселената Антонос.</em><br>
+      Над 100 секретни досиета. Десетки активни заплахи. Едно съдържащо ги.<br>
+      <em>Вашето ниво на разрешение в момента е: ЦИВИЛЕН.</em>
+    </p>
+    <div class="hero-ctas">
+      <button class="btn-primary" onclick="showPage('database')">[ ДОСТЪП ДО БАЗАТА ДАННИ ]</button>
+      <button class="btn-secondary" onclick="showPage('entity')">[ ЧЕТЕТЕ AUE-000 ]</button>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <span class="hero-stat-num" id="counterEntities">000</span>
+        <span class="hero-stat-label">Документирани Аномалии</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-num" id="counterBreaches">000</span>
+        <span class="hero-stat-label">Нарушения на Съдържане</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-num" id="counterNeutralized">000</span>
+        <span class="hero-stat-label">Неутрализирани Субекти</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- CRITICAL ANOMALIES -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-title"><span>⚠</span> КРИТИЧНИ АНОМАЛИИ — АКТИВНИ ЗАПЛАХИ</div>
+      <a class="section-action" onclick="showPage('database')">ПЪЛНА БАЗА ДАННИ →</a>
+    </div>
+    <div class="entity-grid">
+      <!-- AUE-000 -->
+      <div class="entity-card keter" onclick="showPage('entity')">
+        <div class="card-top">
+          <div class="card-id">AUE-000 // 2021-03-14</div>
+          <div class="threat-badge keter">KETER / ВРАЖДЕБЕН</div>
+        </div>
+        <div class="card-title">Прокалнатият Асансьор</div>
+        <div class="card-subtitle">THE CURSED ELEVATOR</div>
+        <div class="card-excerpt">Субектът се появява като функционираща кабина за повдигане в жилищни сгради. Въвлечените в него лица не се завръщат на изходния етаж. Съдбата на пасажерите е неизвестна. Последно засечен: Пловдив.</div>
+        <div class="card-footer">
+          <div class="card-status"><span class="status-dot"></span>НА СВОБОДА</div>
+          <div class="card-read">ЧЕТЕТЕ ДОСИЕТО</div>
+        </div>
+      </div>
+      <!-- AUE-001 -->
+      <div class="entity-card hostile" onclick="showPage('entity')">
+        <div class="card-top">
+          <div class="card-id">AUE-001 // 2021-07-02</div>
+          <div class="threat-badge hostile">ВРАЖДЕБЕН</div>
+        </div>
+        <div class="card-title">Гласът Отвъд Стената</div>
+        <div class="card-subtitle">THE VOICE BEYOND THE WALL</div>
+        <div class="card-excerpt">Акустична аномалия, локализирана в определени архитектурни конструкции. Шепне имена на лица, които все още не са починали. Слушателите показват трайни психологически промени след 90 секунди на излагане.</div>
+        <div class="card-footer">
+          <div class="card-status"><span class="status-dot amber"></span>ЧАСТИЧНО СЪДЪРЖАН</div>
+          <div class="card-read">ЧЕТЕТЕ ДОСИЕТО</div>
+        </div>
+      </div>
+      <!-- AUE-002 -->
+      <div class="entity-card euclid" onclick="showPage('entity')">
+        <div class="card-top">
+          <div class="card-id">AUE-002 // 2021-09-18</div>
+          <div class="threat-badge euclid">НЕПРЕДВИДИМ</div>
+        </div>
+        <div class="card-title">Огледалото на Съдния Ден</div>
+        <div class="card-subtitle">THE DOOMSDAY MIRROR</div>
+        <div class="card-excerpt">Антикварно огледало с рамка от непознат материал. Отражението закъснява с 3.7 секунди. При продължителен контакт очен, рефлексията започва да действа независимо от субекта.</div>
+        <div class="card-footer">
+          <div class="card-status"><span class="status-dot green"></span>ОСИГУРЕН</div>
+          <div class="card-read">ЧЕТЕТЕ ДОСИЕТО</div>
+        </div>
+      </div>
+      <!-- AUE-007 -->
+      <div class="entity-card hostile" onclick="showPage('entity')">
+        <div class="card-top">
+          <div class="card-id">AUE-007 // 2022-01-11</div>
+          <div class="threat-badge hostile">ВРАЖДЕБЕН</div>
+        </div>
+        <div class="card-title">Детето на Съмрака</div>
+        <div class="card-subtitle">THE CHILD OF DUSK</div>
+        <div class="card-excerpt">Хуманоиден субект с ръст приблизително 110 см. Появява се изключително в периода между залез и 22:00 ч. Взаимодейства с деца под 12-годишна възраст чрез неизвестен когнитивен механизъм.</div>
+        <div class="card-footer">
+          <div class="card-status"><span class="status-dot"></span>НА СВОБОДА</div>
+          <div class="card-read">ЧЕТЕТЕ ДОСИЕТО</div>
+        </div>
+      </div>
+      <!-- AUE-012 -->
+      <div class="entity-card keter" onclick="showPage('entity')">
+        <div class="card-top">
+          <div class="card-id">AUE-012 // 2022-04-30</div>
+          <div class="threat-badge keter">KETER / КОГНИТИВНА ОПАСНОСТ</div>
+        </div>
+        <div class="card-title">Страницата Без Край</div>
+        <div class="card-subtitle">THE PAGE WITHOUT END</div>
+        <div class="card-excerpt">Ръкопис от 847 листа. Текстът се промива самостоятелно при всяко четене. Читателите са неспособни да спрат четенето след преминаване на страница 3. ██ задокументирани смъртни случая.</div>
+        <div class="card-footer">
+          <div class="card-status"><span class="status-dot green"></span>ОСИГУРЕН — НИВО-5 ТРЕЗОР</div>
+          <div class="card-read">ЧЕТЕТЕ ДОСИЕТО</div>
+        </div>
+      </div>
+      <!-- AUE-031 -->
+      <div class="entity-card apollyon" onclick="showPage('entity')">
+        <div class="card-top">
+          <div class="card-id">AUE-031 // 2023-11-02</div>
+          <div class="threat-badge apollyon">АПОЛИОН / КРИТИЧЕН</div>
+        </div>
+        <div class="card-title">Тишината Между Думите</div>
+        <div class="card-subtitle">THE SILENCE BETWEEN WORDS</div>
+        <div class="card-excerpt">
+          <span class="redacted" onclick="this.classList.toggle('revealed')" data-full="Субектът е способен да изтрива концепции от колективната памет на homo sapiens. Последната документирана проява е довела до ████ загубени думи от ████ езика.">████████████████████████████████████████████████████████████████████████████████████</span>
+        </div>
+        <div class="card-footer">
+          <div class="card-status"><span class="status-dot"></span>НЕИЗВЕСТЕН СТАТУС</div>
+          <div class="card-read">ЧЕТЕТЕ ДОСИЕТО</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LATEST DECLASSIFIED -->
+  <section class="section" style="padding-top:0;">
+    <div class="section-header">
+      <div class="section-title"><span>//</span> ПОСЛЕДНО ДЕКЛАСИФИЦИРАНО</div>
+      <a class="section-action">АРХИВ С ДОКАЗАТЕЛСТВА →</a>
+    </div>
+    <div class="latest-grid">
+      <div class="latest-main">
+        <div class="latest-meta">AUE-000 // ВИДЕО ДОКАЗАТЕЛСТВО #3 // КЛАСИФИКАЦИЯ: ОГРАНИЧЕНО</div>
+        <div class="latest-video">
+          <div class="video-bg-text">01001001 01101110 01000011 01101111 01101110 01110100 01100001 01101001 01101110 01101101 01100101 01101110 01110100 01000010 01110010 01100101 01100001 01100011 01101000 01000010 01110010 01100101 01100001 01100011 01101000 01000010 01110010</div>
+        </div>
+        <div class="latest-title">AUE-000 — Документация на нарушение: Сграда „Роза", ет. 8</div>
+        <div class="latest-desc">Оперативен запис от скрита камера, инсталирана от Отдел-7 на AUEF. Записът документира последните 6 минути преди изчезването на изследователите Д-р █████ и Ст. Изсл. ████████. Аудио-визуалното съдържание е оценено като частично когнитивно опасно.</div>
+      </div>
+      <div class="latest-sidebar">
+        <div class="log-entry">
+          <div class="log-entry-id">AUE-031 — АДЕНДУМ 031.4</div>
+          <div class="log-entry-title">Тишината разширява обхвата си</div>
+          <div class="log-entry-meta">12.06.2024<span class="new">● НОВО</span></div>
+        </div>
+        <div class="log-entry" onclick="showPage('entity')">
+          <div class="log-entry-id">AUE-000 — ИНЦИДЕНТ-ДОКЛАД 000.7</div>
+          <div class="log-entry-title">Ново засичане в жилищен район</div>
+          <div class="log-entry-meta">08.06.2024<span class="new">● НОВО</span></div>
+        </div>
+        <div class="log-entry">
+          <div class="log-entry-id">AUE-007 — ПОВЕДЕНЧЕСКИ ДОКЛАД</div>
+          <div class="log-entry-title">Субектът демонстрира нова способност</div>
+          <div class="log-entry-meta">01.06.2024</div>
+        </div>
+        <div class="log-entry">
+          <div class="log-entry-id">AUE-002 — ПРОТОКОЛ ЗА ПРОВЕРКА</div>
+          <div class="log-entry-title">Аномалия на огледалото потвърдена</div>
+          <div class="log-entry-meta">28.05.2024</div>
+        </div>
+        <div class="log-entry">
+          <div class="log-entry-id">ГЛОБАЛЕН ДОКЛАД — Q2 2024</div>
+          <div class="log-entry-title">Квартален обзор на аномалната активност</div>
+          <div class="log-entry-meta">15.05.2024</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATABASE PREVIEW TABLE -->
+  <section class="section" style="padding-top:0;" id="page-database">
+    <div class="section-header">
+      <div class="section-title"><span>//</span> ПЪЛНА БАЗА ДАННИ — ИНДЕКС НА АНОМАЛИИ</div>
+      <a class="section-action">РАЗШИРЕНО ТЪРСЕНЕ →</a>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:10px 16px;text-align:left;color:var(--muted-2);letter-spacing:0.1em;font-weight:400;">ID</th>
+            <th style="padding:10px 16px;text-align:left;color:var(--muted-2);letter-spacing:0.1em;font-weight:400;">ОБЕКТ</th>
+            <th style="padding:10px 16px;text-align:left;color:var(--muted-2);letter-spacing:0.1em;font-weight:400;">ЗАПЛАХА</th>
+            <th style="padding:10px 16px;text-align:left;color:var(--muted-2);letter-spacing:0.1em;font-weight:400;">СТАТУС</th>
+            <th style="padding:10px 16px;text-align:left;color:var(--muted-2);letter-spacing:0.1em;font-weight:400;">ТИП</th>
+            <th style="padding:10px 16px;text-align:left;color:var(--muted-2);letter-spacing:0.1em;font-weight:400;">МЕДИЯ</th>
+          </tr>
+        </thead>
+        <tbody id="dbTable"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CLEARANCE UPSELL -->
+  <div class="clearance-block">
+    <div class="clearance-left">
+      <div class="clearance-eyebrow">// КЛАСИФИКАЦИЯ: НИВО 4 — ОГРАНИЧЕНО</div>
+      <div class="clearance-title">Някои файлове изискват<br>по-висок достъп.</div>
+      <div class="clearance-desc">Адендуми, доклади за инциденти и звукови записи са недостъпни за цивилно ниво. Свържете своя Patreon идентификатор за незабавно повишение на разрешителното ниво и достъп до пълните оперативни архиви.</div>
+    </div>
+    <div class="clearance-right">
+      <div class="clearance-levels">
+        <div class="level-pip filled"></div>
+        <div class="level-pip filled"></div>
+        <div class="level-pip filled"></div>
+        <div class="level-pip"></div>
+        <div class="level-pip"></div>
+      </div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted-2);letter-spacing:0.08em;">ТЕКУЩО НИВО: 3 / 5</div>
+      <button class="btn-primary" style="margin-top:12px;">[ ПОВИШЕТЕ РАЗРЕШИТЕЛНОТО ]</button>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted-2);margin-top:8px;text-align:right;">Чрез свързване с Patreon</div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-brand">
+      <strong>[ AUEF ]</strong>
+      Фондация на Аномалните Единици на Вселената Антонос.<br>
+      Вътрешна мрежа на Фондацията.<br>
+      Неоторизираният достъп се преследва.<br>
+      <br>
+      Тази сесия се наблюдава.
+    </div>
+    <div>
+      <div class="footer-col-title">// ДИРЕКТОРИИ</div>
+      <ul class="footer-links">
+        <li><a onclick="showPage('database')">База Данни — Индекс</a></li>
+        <li><a>Хронология на Събитията</a></li>
+        <li><a>Архив с Медия</a></li>
+        <li><a>Дневници и Документи</a></li>
+        <li><a>Протоколи за Съдържане</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">// ДОСТЪП</div>
+      <ul class="footer-links">
+        <li><a>Повишаване на Разрешителното</a></li>
+        <li><a>Ориентационен Протокол</a></li>
+        <li><a>Комуникации — Discord</a></li>
+        <li><a>YouTube Доказателства</a></li>
+        <li><a>Влизане — О5 Командване</a></li>
+      </ul>
+    </div>
+    <div class="footer-legal">
+      <span>© 2024 AUEF — Antonos Universe Entities Foundation. Всички права запазени.</span>
+      <span style="color:var(--red);">НИВО НА КЛАСИФИКАЦИЯ: 3 // СТРОГО ПОВЕРИТЕЛНО</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ══════════════════ ENTITY PAGE ══════════════════ -->
+<div id="page-entity" style="display:none;">
+  <div class="breadcrumb">
+    <a onclick="showPage('home')">Начало</a>
+    <span>/</span>
+    <a onclick="showPage('home')">База Данни</a>
+    <span>/</span>
+    <a>Клас: Враждебен</a>
+    <span>/</span>
+    <span style="color:var(--text)">AUE-000</span>
+  </div>
+  <div class="entity-layout">
+    <!-- LEFT TOC -->
+    <aside class="entity-toc">
+      <div class="toc-title">// СЪДЪРЖАНИЕ</div>
+      <ul class="toc-list">
+        <li class="toc-item active"><a href="#meta">Метаданни</a></li>
+        <li class="toc-item"><a href="#containment">Процедури за Съдържане</a></li>
+        <li class="toc-item"><a href="#description">Описание</a></li>
+        <li class="toc-item sub"><a href="#desc-behavior">— Поведение</a></li>
+        <li class="toc-item sub"><a href="#desc-victims">— Жертви</a></li>
+        <li class="toc-item"><a href="#addenda">Адендуми</a></li>
+        <li class="toc-item sub"><a href="#add-001">— Инцидент 000.1</a></li>
+        <li class="toc-item sub"><a href="#add-002">— Транскрипт 000.2</a></li>
+        <li class="toc-item sub"><a href="#add-003">— Ниво 4 [ЗАКЛЮЧЕНО]</a></li>
+        <li class="toc-item"><a href="#evidence">Визуални Доказателства</a></li>
+        <li class="toc-item"><a href="#related">Свързани Субекти</a></li>
+      </ul>
+      <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border);">
+        <div class="sidebar-block-title">НАПРЕДЪК ПРИ ЧЕТЕНЕ</div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="readingProgress"></div>
+        </div>
+        <div class="progress-label" id="readingPct">0%</div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="entity-main page-transition">
+      <div class="entity-classification" id="meta">
+        <div class="entity-id-large">AUE-000</div>
+        <div class="threat-badge keter">KETER</div>
+        <div class="threat-badge" style="color:var(--red-bright);border:1px solid rgba(239,83,80,0.3);background:rgba(239,83,80,0.06);">НА СВОБОДА</div>
+      </div>
+      <h1 class="entity-h1">Прокалнатият Асансьор</h1>
+      <div class="entity-sub">THE CURSED ELEVATOR // УСТАНОВЕН: 14.03.2021 // ЗОНА: ПЛОВДИВ, БЪЛГАРИЯ</div>
+
+      <!-- META TABLE -->
+      <div class="meta-table">
+        <div class="meta-table-title">// ОПЕРАТИВНИ МЕТАДАННИ — AUE-000</div>
+        <div class="meta-row"><span class="meta-key">АРТИКУЛ №:</span><span class="meta-val">AUE-000</span></div>
+        <div class="meta-row"><span class="meta-key">НИВО НА ЗАПЛАХА:</span><span class="meta-val hostile">KETER / ВРАЖДЕБЕН</span></div>
+        <div class="meta-row"><span class="meta-key">СТАТУС:</span><span class="meta-val uncontained">НА СВОБОДА — МОБИЛЕН</span></div>
+        <div class="meta-row"><span class="meta-key">ПОСЛЕДНА ЛОКАЦИЯ:</span><span class="meta-val">Пловдив, Тракия — Сграда 47-Б</span></div>
+        <div class="meta-row"><span class="meta-key">ТИП:</span><span class="meta-val">Пространствена / Когнитивна</span></div>
+        <div class="meta-row"><span class="meta-key">ДАТА НА УСТАНОВЯВАНЕ:</span><span class="meta-val">14 Март 2021</span></div>
+        <div class="meta-row"><span class="meta-key">ЗАПИСАНИ ЖЕРТВИ:</span><span class="meta-val hostile">██ (КЛАСИФИЦИРАНО)</span></div>
+        <div class="meta-row"><span class="meta-key">ОТГОВОРЕН ИЗСЛЕДОВАТЕЛ:</span><span class="meta-val">Д-р ████████ — Отдел 7</span></div>
+        <div class="meta-row"><span class="meta-key">ИЗИСКВАНЕ ЗА ДОСТЪП:</span><span class="meta-val">Ниво 3 (Пълен достъп: Ниво 4)</span></div>
+      </div>
+
+      <!-- CONTAINMENT -->
+      <div class="entity-section" id="containment">
+        <div class="entity-section-heading">СПЕЦИАЛНИ ПРОЦЕДУРИ ЗА СЪДЪРЖАНЕ</div>
+        <div class="entity-body">
+          <p>Поради мобилния характер на AUE-000, стандартните физически протоколи за съдържане са неприложими. Субектът мигрира между жилищни сгради в радиус от приблизително 40 километра, центриран около квартал Тракия, Пловдив.</p>
+          <p>Всички жилищни сгради в Зона-7 трябва да бъдат оборудвани с <strong>Мрежа за Ранно Предупреждение Модел-3</strong> — система от сензори, реагираща на специфичната електромагнитна сигнатура на субекта. При засичане, персоналът на AUEF трябва незабавно да установи 200-метров периметър.</p>
+          <p>Цивилните жители не трябва да бъдат информирани за присъствието на AUE-000. При необходимост от евакуация, използвайте <span class="redacted" onclick="this.classList.toggle('revealed')">Протокол Тъмна Вода — пълна евакуация под прикритие на комунална авария.</span></p>
+          <p><strong>КРИТИЧНО:</strong> Персоналът НЕ трябва да влиза в кабината на субекта при никакви обстоятелства. Инцидентите от 2022-04-07 и 2023-11-19 са ясно доказателство за смъртоносния изход при нарушаване на протокола.</p>
+        </div>
+      </div>
+
+      <!-- DESCRIPTION -->
+      <div class="entity-section" id="description">
+        <div class="entity-section-heading">ОПИСАНИЕ</div>
+        <div class="entity-body">
+          <p>AUE-000 се проявява като напълно функционираща кабина за повдигане — асансьор — интегрирана в съществуваща жилищна сграда. Визуалните характеристики на субекта са идентични с тези на стандартните асансьори, произведени между 1975 и 1990 г. в Народна Република България. Той не се отличава по какъвто и да е начин от легитимните съоръжения в сградата.</p>
+
+          <div id="desc-behavior"></div>
+          <p><strong>Поведенчески модел:</strong> При влизане на лице в кабината на AUE-000 вратите се затварят нормално. Лицата, наблюдаващи отвън, докладват, че асансьорът е пристигнал на заявения етаж в нормално разписание. Въпреки това, при отварянето на вратите кабината е <strong>празна.</strong></p>
+
+          <p>Пространствено-аналитичните измервания показват, че в момента на затваряне на вратите, вътрешността на AUE-000 <span class="redacted" onclick="this.classList.toggle('revealed')">разширява размерите си до пространство от приблизително 400 квадратни метра, което не кореспондира с никоя позната физична реалност.</span> Инструментите за измерване, поставени в кабината, спират да функционират при преминаване на прага.</p>
+
+          <div id="desc-victims"></div>
+          <p><strong>Съдба на жертвите:</strong> Съдбата на лицата, погълнати от AUE-000, е <span class="redacted" onclick="this.classList.toggle('revealed')">частично документирана чрез аудио-записи, получени след инцидент 000.3. Записите съдържат гласове, идентифицирани като принадлежащи на изчезнали лица, молещи за помощ на езици, които те не са владеели приживе.</span></p>
+
+          <p>Субектът демонстрира примитивна форма на интелект — позиционира се предпочитано в близост до <span class="redacted" onclick="this.classList.toggle('revealed')">самотни лица, показващи признаци на психологическа уязвимост. Анализаторите от Отдел-9 класифицират поведението като хищническо.</span></p>
+        </div>
+      </div>
+
+      <!-- ADDENDA -->
+      <div class="entity-section" id="addenda">
+        <div class="entity-section-heading">АДЕНДУМИ И ДОКЛАДИ ЗА ИНЦИДЕНТИ</div>
+
+        <div class="accordion open">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div>
+              <span class="accordion-title">АДЕНДУМ 000.1 — ПЪРВОНАЧАЛЕН ДОКЛАД ЗА УСТАНОВЯВАНЕ</span>
+              <br><span style="font-family:var(--mono);font-size:10px;color:var(--muted-2);">14 Март 2021 — Д-р ████████</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="accordion-badge">НВО-3</span>
+              <span class="accordion-toggle">+</span>
+            </div>
+          </div>
+          <div class="accordion-body">
+            <p>На 14 март 2021 г. AUEF получи анонимен сигнал относно „странния асансьор" в блок 47-Б, кв. Тракия. Оперативна група от двама агенти беше изпратена за проверка. Агент ████ докладва нормален визуален преглед на съоръжението без аномалии.</p>
+            <p>Следващата сутрин, Агент ████ не се яви на служебния брифинг. Последният му засечен сигнал е от асансьора на блок 47-Б, в 23:47 часа предходната вечер. Тялото му не беше открито. Устройствата му бяха намерени наредени старателно пред вратата на шахтата.</p>
+          </div>
+        </div>
+
+        <div class="accordion" id="add-002">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div>
+              <span class="accordion-title">АДЕНДУМ 000.2 — ТРАНСКРИПТ НА АУДИО ЗАПИС (000-REC-003)</span>
+              <br><span style="font-family:var(--mono);font-size:10px;color:var(--muted-2);">09 Ноември 2022</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="accordion-badge">НВО-3</span>
+              <span class="accordion-toggle">+</span>
+            </div>
+          </div>
+          <div class="accordion-body">
+            <p style="color:var(--muted-2);font-size:12px;margin-bottom:1rem;">Следният транскрипт е извлечен от записващо устройство, оставено вътре в кабината. Устройството беше намерено пред вратата на асансьора 72 часа след инцидента. Времето на записа: 04:12:38 до 04:19:52.</p>
+            <div class="log-line"><span class="timestamp">[04:12:38]</span> <span class="speaker">ИЗСЛ. МАРИНОВА:</span> Влизаме вътре. Кабината изглежда нормална. Размери около 1.2 на 1.5 метра.</div>
+            <div class="log-line"><span class="timestamp">[04:12:51]</span> <span class="speaker">ИЗСЛ. МАРИНОВА:</span> Вратата се затвори. Натискам бутона за 8-ми етаж.</div>
+            <div class="log-line"><span class="timestamp">[04:13:04]</span> <span class="speaker">ИЗСЛ. МАРИНОВА:</span> Чакай. Кабината се... разширява ли? ████ виждаш ли...</div>
+            <div class="log-line"><span class="timestamp">[04:13:09]</span> <span class="speaker">ИЗСЛ. ████:</span> Да. Виждам. Не движи се.</div>
+            <div class="log-line"><span class="timestamp">[04:13:47]</span> <span style="color:var(--muted-2);font-style:italic;">[35 секунди неразбираем шум. Анализаторите описват звука като „гласове на множество лица, говорещи едновременно на различни езици"]</span></div>
+            <div class="log-line"><span class="timestamp">[04:14:22]</span> <span class="speaker critical">ИЗСЛ. МАРИНОВА [КРЕЩИ]:</span> ИЗХОДЪТ Е ТАМ — ТИЧАЙ — ТИЧАЙ —</div>
+            <div class="log-line"><span class="timestamp">[04:14:29]</span> <span style="color:var(--muted-2);font-style:italic;">[Записът завършва. Двамата изследователи са в списъка на изчезналите.]</span></div>
+          </div>
+        </div>
+
+        <div class="accordion" id="add-003">
+          <div class="accordion-header" style="opacity:0.5;cursor:not-allowed;">
+            <div>
+              <span class="accordion-title">АДЕНДУМ 000.3 — ОПЕРАТИВЕН ДОКЛАД [КЛАСИФИЦИРАНО]</span>
+              <br><span style="font-family:var(--mono);font-size:10px;color:var(--muted-2);">Достъпно само за Ниво 4+</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="accordion-badge" style="color:var(--red);border-color:rgba(211,47,47,0.3);">НВО-4</span>
+              <span style="font-family:var(--mono);font-size:14px;color:var(--red);">🔒</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PATREON GATE -->
+      <div class="entity-section" id="evidence">
+        <div class="entity-section-heading">АДЕНДУМ 000.4 — ПЪЛНИ ОПЕРАТИВНИ ДАННИ</div>
+        <div class="patreon-gate">
+          <div class="gate-blurred">
+            Следният раздел съдържа пълния оперативен доклад, включващ координати на всички известни локации на AUE-000, методите за ранно засичане, разработени от Отдел-7, и единствения задокументиран случай на успешно взаимодействие с субекта без смъртен изход. Разпоредбата за класифициране е издадена от О5-Командването след инцидент 000.6.
+          </div>
+          <div class="gate-cta">
+            <button class="btn-primary">[ СВЪРЖЕТЕ PATREON — НИВО 4 ДОСТЪП ]</button>
+            <div class="gate-lock">Тази секция изисква<br>повишено разрешително.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISUAL EVIDENCE -->
+      <div class="entity-section">
+        <div class="entity-section-heading">ВИЗУАЛНИ ДОКАЗАТЕЛСТВА</div>
+        <div style="background:#000;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);cursor:pointer;position:relative;overflow:hidden;margin-bottom:1rem;">
+          <div class="video-bg-text">AUE-000 // EVIDENCE VIDEO #3 // RESTRICTED ACCESS // FOUNDATION INTERNAL NETWORK // DO NOT DISTRIBUTE // AUE-000 // EVIDENCE VIDEO #3 // RESTRICTED ACCESS // FOUNDATION INTERNAL NETWORK</div>
+          <div style="position:absolute;font-family:var(--mono);font-size:12px;letter-spacing:0.1em;color:white;background:rgba(211,47,47,0.85);padding:12px 24px;">▶ ВИДЕО ДОКАЗАТЕЛСТВО 000-VID-003</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted-2);letter-spacing:0.06em;">AUE-000 — Документация на нарушение: Сграда 47-Б // Записан: 07.04.2022 // Продължителност: 6:34</div>
+      </div>
+
+      <!-- RELATED -->
+      <div class="entity-section" id="related">
+        <div class="entity-section-heading">СВЪРЗАНИ СУБЕКТИ</div>
+        <div class="related-grid">
+          <div class="related-card" onclick="showPage('entity')">
+            <div class="related-card-id">AUE-001</div>
+            <div class="related-card-info">
+              <div class="related-card-name">Гласът Отвъд Стената</div>
+              <div class="related-card-threat threat-badge hostile" style="border:none;background:none;padding:0;font-size:10px;">ВРАЖДЕБЕН — ЧАСТИЧНО СЪДЪРЖАН</div>
+            </div>
+            <div class="related-card-arrow">→</div>
+          </div>
+          <div class="related-card" onclick="showPage('entity')">
+            <div class="related-card-id">AUE-007</div>
+            <div class="related-card-info">
+              <div class="related-card-name">Детето на Съмрака</div>
+              <div class="related-card-threat threat-badge hostile" style="border:none;background:none;padding:0;font-size:10px;">ВРАЖДЕБЕН — НА СВОБОДА</div>
+            </div>
+            <div class="related-card-arrow">→</div>
+          </div>
+          <div class="related-card" onclick="showPage('entity')">
+            <div class="related-card-id">AUE-031</div>
+            <div class="related-card-info">
+              <div class="related-card-name">Тишината Между Думите</div>
+              <div class="related-card-threat threat-badge apollyon" style="border:none;background:none;padding:0;font-size:10px;">АПОЛИОН — НЕИЗВЕСТЕН СТАТУС</div>
+            </div>
+            <div class="related-card-arrow">→</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENTITY NAV -->
+      <div class="entity-nav-bottom">
+        <div class="entity-nav-prev" onclick="showPage('entity')">
+          <span class="entity-nav-label">← ПРЕДИШЕН СУБЕКТ</span>
+          <span class="entity-nav-name">AUE-001 — Гласът Отвъд Стената</span>
+        </div>
+        <div class="entity-nav-next" onclick="showPage('entity')">
+          <span class="entity-nav-label">СЛЕДВАЩ СУБЕКТ →</span>
+          <span class="entity-nav-name">AUE-002 — Огледалото на Съдния Ден</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- RIGHT SIDEBAR -->
+    <aside class="entity-sidebar-right">
+      <div class="sidebar-block">
+        <div class="sidebar-block-title">// СТАТУС НА СЪДЪРЖАНЕ</div>
+        <div style="background:rgba(211,47,47,0.06);border:1px solid rgba(211,47,47,0.2);padding:1rem;font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--muted);">
+          <span style="color:var(--red-bright);display:block;margin-bottom:4px;">● НА СВОБОДА — АКТИВНА ЗАПЛАХА</span>
+          Субектът не е съдържан.<br>
+          Граждански контакт: ЗАБРАНЕН<br>
+          Протокол при засичане: АЛФА-9
+        </div>
+      </div>
+      <div class="sidebar-block">
+        <div class="sidebar-block-title">// РАЗПРЕДЕЛЕНИЕ НА ЖЕРТВИ</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted-2);line-height:2;">
+          <div style="display:flex;justify-content:space-between;"><span>Изчезнали:</span><span style="color:var(--hostile);">██</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>Потвърдена загуба:</span><span style="color:var(--red-bright);">██</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>Оцелели (разпит):</span><span style="color:var(--safe);">1</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>AUEF Персонал:</span><span style="color:var(--hostile);">4</span></div>
+        </div>
+      </div>
+      <div class="sidebar-block">
+        <div class="sidebar-block-title">// ПОСЛЕДНИ ЗАСИЧАНИЯ</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted-2);line-height:2.2;">
+          <div><span style="color:var(--muted-2);">08.06.24</span> — Кв. Тракия, Бл. 47</div>
+          <div><span style="color:var(--muted-2);">01.06.24</span> — Кв. Столипиново</div>
+          <div><span style="color:var(--muted-2);">14.05.24</span> — Центъра, ул. Найден Геров</div>
+          <div><span style="color:var(--muted-2);">02.05.24</span> — Кв. Кършияка</div>
+        </div>
+      </div>
+      <div class="sidebar-block">
+        <div class="sidebar-block-title">// ПОВИШЕТЕ ДОСТЪПА СИ</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted-2);line-height:1.7;margin-bottom:1rem;">Разделите с класификация Ниво 4 са заключени. Свържете се с Patreon за пълен достъп.</div>
+        <button class="btn-primary" style="width:100%;clip-path:none;font-size:11px;">[ ПОВИШАВАНЕ НА НИВО ]</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- SEARCH OVERLAY -->
+<div class="search-overlay" id="searchOverlay">
+  <button class="search-close" onclick="closeSearch()">[ ESC ] ЗАТВОРИ</button>
+  <div class="search-box">
+    <div class="search-label">// ТЪРСЕНЕ В БАЗАТА ДАННИ — AUEF АРХИВ</div>
+    <div class="search-input-wrap">
+      <span class="search-input-prefix">></span>
+      <input type="text" class="search-input" id="searchInput" placeholder="Въведете субект или AUE номер..." oninput="updateSearch(this.value)" autofocus>
+    </div>
+    <div class="search-results-label" id="searchResultsLabel">ВЪВЕДЕТЕ ЗАЯВКА ЗА ТЪРСЕНЕ</div>
+    <div id="searchResults"></div>
+  </div>
+</div>
+
+<script>
+const entities=[
+  {id:'AUE-000',name:'Прокалнатият Асансьор',threat:'keter',status:'НА СВОБОДА',type:'Пространствена',media:'Видео'},
+  {id:'AUE-001',name:'Гласът Отвъд Стената',threat:'hostile',status:'ЧАСТИЧНО СЪДЪРЖАН',type:'Акустична',media:'Аудио'},
+  {id:'AUE-002',name:'Огледалото на Съдния Ден',threat:'euclid',status:'ОСИГУРЕН',type:'Обект',media:'Видео'},
+  {id:'AUE-003',name:'Мъжът Без Лице',threat:'hostile',status:'НА СВОБОДА',type:'Хуманоид',media:'Текст'},
+  {id:'AUE-004',name:'Библиотеката на Изгубените',threat:'euclid',status:'ЧАСТИЧНО СЪДЪРЖАН',type:'Локация',media:'Текст'},
+  {id:'AUE-005',name:'Детската Рисунка',threat:'safe',status:'ОСИГУРЕН',type:'Артефакт',media:'Изображение'},
+  {id:'AUE-006',name:'Часовникът Без Стрелки',threat:'euclid',status:'ОСИГУРЕН',type:'Артефакт',media:'Текст'},
+  {id:'AUE-007',name:'Детето на Съмрака',threat:'hostile',status:'НА СВОБОДА',type:'Хуманоид',media:'Видео'},
+  {id:'AUE-008',name:'Шепотникът',threat:'euclid',status:'НЕУТРАЛИЗИРАН',type:'Психологическа',media:'Аудио'},
+  {id:'AUE-009',name:'Черната Вода',threat:'keter',status:'НА СВОБОДА',type:'Химическа',media:'Текст'},
+  {id:'AUE-010',name:'Огнището на Миналото',threat:'safe',status:'ОСИГУРЕН',type:'Локация',media:'Изображение'},
+  {id:'AUE-012',name:'Страницата Без Край',threat:'keter',status:'ОСИГУРЕН — НВО-5',type:'Когнитивна',media:'Текст'},
+  {id:'AUE-015',name:'Двойникът',threat:'euclid',status:'НА СВОБОДА',type:'Хуманоид',media:'Видео'},
+  {id:'AUE-019',name:'Звукът от Мазето',threat:'hostile',status:'ЧАСТИЧНО СЪДЪРЖАН',type:'Акустична',media:'Аудио'},
+  {id:'AUE-031',name:'Тишината Между Думите',threat:'apollyon',status:'НЕИЗВЕСТЕН',type:'Концептуална',media:'Текст'},
+];
+
+const threatColors={
+  safe:'var(--safe)',euclid:'var(--euclid)',hostile:'var(--hostile)',keter:'var(--red-bright)',apollyon:'#A78BFA'
+};
+const threatLabels={
+  safe:'БЕЗОПАСЕН',euclid:'НЕПРЕДВИДИМ',hostile:'ВРАЖДЕБЕН',keter:'KETER',apollyon:'АПОЛИОН'
+};
+
+function buildTable(){
+  const tbody=document.getElementById('dbTable');
+  if(!tbody)return;
+  tbody.innerHTML='';
+  entities.forEach(e=>{
+    const tr=document.createElement('tr');
+    tr.style.cssText='border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;';
+    tr.onmouseenter=()=>tr.style.background='var(--surface-2)';
+    tr.onmouseleave=()=>tr.style.background='';
+    tr.onclick=()=>showPage('entity');
+    const statusDot=e.status.includes('СВОБОДА')?'var(--red)':e.status.includes('ОСИГУРЕН')?'var(--safe)':'var(--amber)';
+    tr.innerHTML=`
+      <td style="padding:10px 16px;color:${threatColors[e.threat]};letter-spacing:0.1em;">${e.id}</td>
+      <td style="padding:10px 16px;color:var(--text);font-family:var(--sans);">${e.name}</td>
+      <td style="padding:10px 16px;"><span style="color:${threatColors[e.threat]};font-size:10px;letter-spacing:0.08em;">${threatLabels[e.threat]}</span></td>
+      <td style="padding:10px 16px;"><span style="display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:0.06em;color:var(--muted);">
+        <span style="width:6px;height:6px;border-radius:50%;background:${statusDot};display:inline-block;"></span>${e.status}</span></td>
+      <td style="padding:10px 16px;color:var(--muted-2);font-size:11px;">${e.type}</td>
+      <td style="padding:10px 16px;color:var(--muted-2);font-size:11px;">${e.media}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function showPage(page){
+  document.getElementById('page-home').style.display='none';
+  document.getElementById('page-entity').style.display='none';
+  if(page==='home'||page==='database'){
+    document.getElementById('page-home').style.display='block';
+    if(page==='database'){
+      setTimeout(()=>{
+        document.getElementById('page-database').scrollIntoView({behavior:'smooth'});
+      },100);
+    }else{
+      window.scrollTo(0,0);
+    }
+  }else if(page==='entity'){
+    document.getElementById('page-entity').style.display='block';
+    window.scrollTo(0,0);
+  }
+  buildTable();
+}
+
+function toggleAccordion(header){
+  const acc=header.closest('.accordion');
+  if(acc.style.cursor==='not-allowed')return;
+  acc.classList.toggle('open');
+}
+
+// COUNTERS
+function animateCounter(el,target,duration){
+  const start=0;const step=(target/duration)*10;let current=0;
+  const timer=setInterval(()=>{
+    current+=step;
+    if(current>=target){current=target;clearInterval(timer);}
+    el.textContent=String(Math.floor(current)).padStart(3,'0');
+  },10);
+}
+setTimeout(()=>{
+  animateCounter(document.getElementById('counterEntities'),127,1500);
+  animateCounter(document.getElementById('counterBreaches'),34,1200);
+  animateCounter(document.getElementById('counterNeutralized'),12,1000);
+},400);
+
+// SCROLL PROGRESS
+window.addEventListener('scroll',()=>{
+  const h=document.documentElement.scrollHeight-window.innerHeight;
+  const pct=h>0?(window.scrollY/h)*100:0;
+  const fill=document.getElementById('scrollFill');
+  if(fill)fill.style.width=pct+'%';
+  const rFill=document.getElementById('readingProgress');
+  const rPct=document.getElementById('readingPct');
+  if(rFill){rFill.style.width=pct+'%';}
+  if(rPct){rPct.textContent=Math.round(pct)+'%';}
+});
+
+// SEARCH
+function openSearch(){
+  const o=document.getElementById('searchOverlay');
+  o.classList.add('open');
+  setTimeout(()=>document.getElementById('searchInput').focus(),100);
+}
+function closeSearch(){
+  document.getElementById('searchOverlay').classList.remove('open');
+  document.getElementById('searchInput').value='';
+  document.getElementById('searchResults').innerHTML='';
+  document.getElementById('searchResultsLabel').textContent='ВЪВЕДЕТЕ ЗАЯВКА ЗА ТЪРСЕНЕ';
+}
+function updateSearch(q){
+  const res=document.getElementById('searchResults');
+  const label=document.getElementById('searchResultsLabel');
+  if(!q.trim()){res.innerHTML='';label.textContent='ВЪВЕДЕТЕ ЗАЯВКА ЗА ТЪРСЕНЕ';return;}
+  const filtered=entities.filter(e=>
+    e.id.toLowerCase().includes(q.toLowerCase())||
+    e.name.toLowerCase().includes(q.toLowerCase())||
+    e.type.toLowerCase().includes(q.toLowerCase())
+  );
+  label.textContent=`${filtered.length} РЕЗУЛТАТА — ЗАЯВКА: "${q.toUpperCase()}"`;
+  res.innerHTML=filtered.map(e=>`
+    <div class="search-result-item" onclick="closeSearch();showPage('entity');">
+      <span style="font-family:var(--mono);font-size:11px;color:${threatColors[e.threat]};min-width:70px;letter-spacing:0.1em;">${e.id}</span>
+      <span style="flex:1;font-size:14px;">${e.name}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted-2);">${threatLabels[e.threat]}</span>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--red);margin-left:1rem;">→</span>
+    </div>
+  `).join('');
+  if(!filtered.length)res.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--muted-2);padding:1rem 1.25rem;background:var(--surface);border:1px solid var(--border);">НЯМА РЕЗУЛТАТИ. МОДИФИЦИРАЙТЕ ПАРАМЕТРИТЕ ЗА ТЪРСЕНЕ.</div>';
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSearch();});
+
+buildTable();
+</script>
+</body>
+</html>
